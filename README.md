@@ -14,14 +14,14 @@
 - Supports both CSV (using `|` as a delimiter) and Excel output formats.
 - Formats Excel output with styled headers, dropdowns for compliance status, and conditional formatting for easy review.
 
-## Requirements
+## Installation
 
-- **Python 3**
-- **Dependencies:** `pdfplumber`, `openpyxl`, `colorama`
-  - Install dependencies with:
-    ```
-    pip install pdfplumber openpyxl colorama
-    ```
+1. Clone this repository.
+2. Install dependencies using `requirements.txt`:
+
+   ```bash
+   pip install -r requirements.txt
+   ```
 
 ## Usage
 
