@@ -68,6 +68,10 @@ For JSON output, the data is structured as a list of dictionaries, with each dic
 
 > **Note:** The script automatically excludes any sections labeled "CIS Controls" to focus solely on the core recommendations.
 
+## Acknowledgements
+
+Special thanks to [Flavien Fouqueray (UnBonWhisky)](https://www.linkedin.com/in/ffouqueray/) for his valuable bug fixes and contributions in earlier versions of this script.
+
 ## License
 
 This project is licensed under the MIT License. Please respect the copyrights
