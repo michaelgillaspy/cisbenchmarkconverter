@@ -5,7 +5,6 @@ File: cis_benchmark_converter.py
 Author: Maxime Beauchamp
 LinkedIn: https://www.linkedin.com/in/maxbeauchamp/
 Created: 2024-11-06
-Last Update: 2025-14-03
 
 Description:
     This script extracts recommendations from CIS Benchmark PDF documents and exports
@@ -54,6 +53,11 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.worksheet.table import Table, TableStyleInfo
 from openpyxl.formatting.rule import FormulaRule
 from openpyxl.utils import get_column_letter
+
+# 1️⃣ Désactive tous les WARNINGS venant de pdfminer
+logging.getLogger("pdfminer").setLevel(logging.ERROR)
+logging.getLogger("pdfplumber").setLevel(logging.ERROR)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # -----------------------------------------------------------------------------------
 # Global Constants and Regular Expressions
@@ -203,10 +207,10 @@ def extract_section(lines: List[str], start_index: int, section_name: str) -> Tu
         line: str = lines[current_index].strip()
         line = remove_page_numbers(line)
 
-        # End of this section if:
-        #   - We reach another known section header
-        #   - We detect a new recommendation title
-        #   - We see "CIS Controls"
+        # End this section if:
+        #   - Another known section header is reached
+        #   - A new recommendation title is detected
+        #   - A mention of "CIS Controls" appears
         if any(line.startswith(sec) for sec in SECTIONS_WITHOUT_CIS) \
            or TITLE_PATTERN.match(line) \
            or line.lower().startswith("cis controls"):
@@ -222,8 +226,9 @@ def extract_recommendations(full_text: str) -> List[Dict[str, str]]:
     Parse the concatenated PDF text to extract recommendations.
 
     Returns:
-        A list of dictionaries, each representing a recommendation with keys like
+        A list of dictionaries, each representing a recommendation with keys such as
         "Number", "Level", "Title", and the extracted sections (Profile Applicability, etc.).
+        Recommendations whose number starts with "0" are ignored.
     """
     recommendations: List[Dict[str, str]] = []
     lines: List[str] = full_text.splitlines()
@@ -237,17 +242,21 @@ def extract_recommendations(full_text: str) -> List[Dict[str, str]]:
         # Detect a recommendation title line
         title_match = TITLE_PATTERN.match(line)
         if title_match:
-            # Check if next lines contain 'Profile Applicability:' => indicates a valid rec
+            rec_number = title_match.group(1)
+            # Skip titles starting with "0" (e.g., IP addresses like "0.0.0.0/0")
+            if rec_number.startswith("0"):
+                current_index += 1
+                continue
+
             if find_profile_applicability(lines, current_index):
-                # Save previous recommendation if it exists
                 if current_recommendation:
                     recommendations.append(current_recommendation)
                 current_recommendation = {
-                    'Number': title_match.group(1),
+                    'Number': rec_number,
                     'Level': title_match.group(2) or '',
                     'Title': title_match.group(3),
                 }
-                # Capture multi-line titles
+                # Capture multi-line titles if present
                 while (current_index + 1 < len(lines)
                        and not any(lines[current_index + 1].strip().startswith(sec) for sec in SECTIONS_WITHOUT_CIS)
                        and not TITLE_PATTERN.match(lines[current_index + 1].strip())):
@@ -258,20 +267,19 @@ def extract_recommendations(full_text: str) -> List[Dict[str, str]]:
         for sec in SECTIONS_WITHOUT_CIS:
             if line.startswith(sec):
                 content, next_index = extract_section(lines, current_index, sec)
-                # e.g. "Additional Information:" -> key = "Additional Information"
-                current_recommendation[sec[:-1]] = content
+                current_recommendation[sec[:-1]] = content  # Remove trailing colon
                 current_index = next_index - 1
                 break
 
         current_index += 1
 
-    # Add the last recommendation if any
     if current_recommendation:
         recommendations.append(current_recommendation)
 
-    # Remove duplicates based on (Number, Title) in case of accidental repeats
+    # Remove duplicates based on (Number, Title)
     unique_recommendations = {(rec['Number'], rec['Title']): rec for rec in recommendations}
     return list(unique_recommendations.values())
+
 
 # -----------------------------------------------------------------------------------
 # Output Generation (CSV/Excel/JSON)
@@ -288,7 +296,7 @@ def write_output(
     Writes the extracted recommendations to CSV, Excel, or JSON format.
     
     Args:
-        recommendations : List of recommendation dicts.
+        recommendations : List of recommendation dictionaries.
         output_file     : Output file path.
         output_format   : "csv", "excel", or "json".
         title           : Document title (extracted from PDF).
@@ -296,7 +304,7 @@ def write_output(
     """
     logging.info(f"Writing output to {output_file} in {output_format.upper()} format...")
     headers: List[str] = ['Compliance Status', 'Number', 'Level', 'Title']
-    headers += [sec[:-1] for sec in SECTIONS_WITHOUT_CIS]  # remove trailing colon
+    headers += [sec[:-1] for sec in SECTIONS_WITHOUT_CIS]  # Remove trailing colon
 
     if output_format == 'csv':
         try:
@@ -368,7 +376,6 @@ def write_output(
 
     elif output_format == 'json':
         try:
-            # Create a JSON object with document information and recommendations
             data = {
                 "document_title": title if title else "CIS Benchmark Document",
                 "document_version": version,
@@ -398,33 +405,24 @@ def main() -> None:
                         help="Output file (default: same as input file name with .csv, .xlsx, or .json).")
     parser.add_argument("-f", "--format", choices=['csv', 'excel', 'json'], default='excel',
                         help="Output format (csv, excel, or json).")
-    parser.add_argument("--start_page", type=int, default=10,
-                        help="Page number to start extraction (default: 10).")
+    parser.add_argument("--start_page", type=int, default=1,
+                        help="Page number to start extraction (default: 1).")
     parser.add_argument("--log_level", type=str, default="INFO",
                         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
                         help="Logging level (default: INFO).")
     args = parser.parse_args()
 
-    # Configure logging level
     logging.getLogger().setLevel(args.log_level.upper())
 
-    # Prepare file paths
     input_file: Path = args.input
     output_format: str = args.format
     base_name: str = input_file.stem
     extension: str = "csv" if output_format == "csv" else ("xlsx" if output_format == "excel" else "json")
     output_file: Path = args.output if args.output else Path(generate_unique_filename(base_name, extension))
 
-    # Extract title and version from the PDF
     title, version = extract_title_and_version(input_file)
-
-    # Read text from PDF, starting at the user-specified page
     pdf_text = read_pdf(input_file, start_page=args.start_page)
-
-    # Extract recommendations from the raw PDF text
     recommendations = extract_recommendations(pdf_text)
-
-    # Write the extracted data to CSV, Excel, or JSON
     write_output(recommendations, output_file, output_format, title, version)
 
 if __name__ == "__main__":
