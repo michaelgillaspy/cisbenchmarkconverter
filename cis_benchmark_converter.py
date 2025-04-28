@@ -5,7 +5,7 @@ File: cis_benchmark_converter.py
 Author: Maxime Beauchamp
 LinkedIn: https://www.linkedin.com/in/maxbeauchamp/
 Created: 2024-11-06
-Last Update: 2025-14-03
+Last Update: 2025-28-04
 
 Description:
     This script extracts recommendations from CIS Benchmark PDF documents and exports
