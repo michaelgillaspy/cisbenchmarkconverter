@@ -5,7 +5,7 @@ File: cis_benchmark_converter.py
 Author: Maxime Beauchamp
 LinkedIn: https://www.linkedin.com/in/maxbeauchamp/
 Created: 2024-11-06
-Last Update: 2025-14-03
+Last Update: 2025-28-04
 
 Description:
     This script extracts recommendations from CIS Benchmark PDF documents and exports
@@ -54,6 +54,12 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.worksheet.table import Table, TableStyleInfo
 from openpyxl.formatting.rule import FormulaRule
 from openpyxl.utils import get_column_letter
+
+# Disable warnings from pdfminer and pdfplumber
+# to avoid cluttering the output with unnecessary messages.
+logging.getLogger("pdfminer").setLevel(logging.ERROR)
+logging.getLogger("pdfplumber").setLevel(logging.ERROR)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # -----------------------------------------------------------------------------------
 # Global Constants and Regular Expressions
