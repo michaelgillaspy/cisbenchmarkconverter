@@ -256,33 +256,64 @@ def extract_section(lines: List[str], start_index: int, section_name: str) -> Tu
         
         # For Audit and Remediation, mark technical content with delimiters
         if section_name in ["Audit:", "Remediation:"]:
-            final_result = []
-            for item in result:
-                # Detect technical content patterns
-                is_technical = (
-                    # Any string containing backslash (catches paths, settings, etc.)
-                    "\\" in item or
-                    # Unix-style paths
-                    item.startswith("/") or
-                    # PowerShell commands
-                    item.startswith("Get-") or item.startswith("Set-") or 
-                    item.startswith("New-") or item.startswith("$") or
-                    # Command line tools
-                    item.startswith("reg ") or item.startswith("net ") or 
-                    item.startswith("gpupdate") or item.startswith("auditpol") or
-                    # Common command patterns
-                    item.startswith("Run ") or item.startswith("Execute ") or
-                    # Registry value format
-                    (": REG_" in item) or (":REG_" in item)
-                )
-                
-                if is_technical:
-                    # Wrap technical content with markers
-                    final_result.append(f"||CODE||{item}||CODE||")
-                else:
-                    final_result.append(item)
+            # First join the content
+            joined_text = ' '.join(result).strip()
             
-            return ' '.join(final_result).strip(), current_index
+            # Use regex to find and wrap technical content
+            import re
+            
+            # Track already processed positions to avoid double-marking
+            marked_positions = set()
+            
+            # Pattern to match technical content
+            # Combined pattern that matches complete paths/commands
+            patterns = [
+                # Registry paths (complete paths with keys and values)
+                (r'((?:HKLM|HKCU|HKEY_[A-Z_]+)\\[^,\s]*(?::[A-Za-z_][A-Za-z0-9_]*)?)', 'registry'),
+                # File/folder paths starting with drive letter
+                (r'([A-Za-z]:\\[^,\n]*?)(?=\s+(?:More\s+information|Note:|Default:|Impact:|This|To\s+establish|To\s+set|should\s+be|is\s+set|can\s+be|will\s+be|may\s+be)|[,.]|$)', 'path'),
+                # Group Policy and Administrative Template paths
+                (r'((?:Computer\s+Configuration|User\s+Configuration|Administrative\s+Templates)\\[^,\n]*?)(?=\s+(?:More\s+information|Note:|Default:|Impact:|This|To\s+establish|To\s+set|should\s+be|is\s+set|can\s+be|will\s+be|may\s+be)|[,.]|$)', 'policy'),
+                # UNC paths
+                (r'(\\\\[^\s,]+(?:\\[^,\n]*)?)', 'unc'),
+                # PowerShell variables and cmdlets
+                (r'(\$[A-Za-z_][A-Za-z0-9_]*)', 'powershell_var'),
+                (r'((?:Get|Set|New|Remove|Add|Enable|Disable|Test|Invoke)-[A-Za-z]+(?:\s+-[A-Za-z]+\s+[^\s,]+)*)', 'powershell_cmd'),
+                # Command line tools
+                (r'((?:reg|net|gpupdate|auditpol|sc|netsh|wmic)\s+[^,\n]*?)(?=\s+(?:More\s+information|Note:|Default:|This)|[,.]|$)', 'command'),
+                # Registry value types
+                (r'(REG_(?:DWORD|SZ|MULTI_SZ|EXPAND_SZ|BINARY|QWORD)(?::[^,\n]+)?)', 'regtype'),
+            ]
+            
+            # Collect all matches with their positions
+            all_matches = []
+            for pattern, match_type in patterns:
+                for match in re.finditer(pattern, joined_text):
+                    # Check if this position hasn't been marked already
+                    if not any(start <= match.start() < end or start < match.end() <= end 
+                              for start, end in marked_positions):
+                        all_matches.append((match.start(), match.end(), match.group(1)))
+                        marked_positions.add((match.start(), match.end()))
+            
+            # Sort matches by position
+            all_matches.sort(key=lambda x: x[0])
+            
+            # Build the result string with markers
+            result_text = []
+            last_end = 0
+            for start, end, matched_text in all_matches:
+                # Add text before the match
+                if start > last_end:
+                    result_text.append(joined_text[last_end:start])
+                # Add the marked technical content
+                result_text.append(f"||CODE||{matched_text}||CODE||")
+                last_end = end
+            
+            # Add any remaining text
+            if last_end < len(joined_text):
+                result_text.append(joined_text[last_end:])
+            
+            return ''.join(result_text), current_index
         else:
             # References section - no special marking needed
             return ' '.join(result).strip(), current_index
