@@ -380,9 +380,7 @@ def write_output(
         sheet.column_dimensions['B'].width = 8
         sheet.column_dimensions['C'].width = 8
         sheet.column_dimensions['D'].width = 50
-        sheet.column_dimensions['E'].width = 15  # Implemented
-        sheet.column_dimensions['F'].width = 30  # Reasoning
-        for col in range(7, len(headers) + 1):
+        for col in range(5, len(headers) + 1):
             col_letter = get_column_letter(col)
             sheet.column_dimensions[col_letter].width = 10
         try:
