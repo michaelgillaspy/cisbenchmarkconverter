@@ -268,14 +268,8 @@ def extract_section(lines: List[str], start_index: int, section_name: str) -> Tu
             # Pattern to match technical content
             # Combined pattern that matches complete paths/commands
             patterns = [
-                # Registry paths (complete paths with keys and values)
-                (r'((?:HKLM|HKCU|HKEY_[A-Z_]+)\\[^,\s]*(?::[A-Za-z_][A-Za-z0-9_]*)?)', 'registry'),
-                # File/folder paths starting with drive letter
-                (r'([A-Za-z]:\\[^,\n]*?)(?=\s+(?:More\s+information|Note:|Default:|Impact:|This|To\s+establish|To\s+set|should\s+be|is\s+set|can\s+be|will\s+be|may\s+be)|[,.]|$)', 'path'),
-                # Group Policy and Administrative Template paths
-                (r'((?:Computer\s+Configuration|User\s+Configuration|Administrative\s+Templates)\\[^,\n]*?)(?=\s+(?:More\s+information|Note:|Default:|Impact:|This|To\s+establish|To\s+set|should\s+be|is\s+set|can\s+be|will\s+be|may\s+be)|[,.]|$)', 'policy'),
-                # UNC paths
-                (r'(\\\\[^\s,]+(?:\\[^,\n]*)?)', 'unc'),
+                # ANY text containing a backslash - catch all paths/configs
+                (r'([^,\n]*\\[^,\n]*)', 'backslash_content'),
                 # PowerShell variables and cmdlets
                 (r'(\$[A-Za-z_][A-Za-z0-9_]*)', 'powershell_var'),
                 (r'((?:Get|Set|New|Remove|Add|Enable|Disable|Test|Invoke)-[A-Za-z]+(?:\s+-[A-Za-z]+\s+[^\s,]+)*)', 'powershell_cmd'),
