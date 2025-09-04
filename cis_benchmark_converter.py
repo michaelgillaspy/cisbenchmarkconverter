@@ -247,8 +247,27 @@ def extract_section(lines: List[str], start_index: int, section_name: str) -> Tu
                 if should_join_no_space:
                     result[-1] += line
                 elif prev_line.endswith("-") and not prev_line.endswith("--"):
-                    # Handle hyphenated content that breaks across lines
-                    result[-1] = prev_line[:-1] + line
+                    # Check if this is part of a URL - if so, keep the hyphen
+                    # URLs often have hyphens that shouldn't be removed
+                    is_url_context = (
+                        "http" in prev_line or 
+                        "www." in prev_line or
+                        ".com" in prev_line or
+                        ".org" in prev_line or
+                        ".gov" in prev_line or
+                        ".edu" in prev_line or
+                        # Check if the next line continues a URL pattern
+                        (line and (line.startswith("http") or 
+                                  "/" in line[:10] or  # URL paths often start with /
+                                  line.startswith("www.")))
+                    )
+                    
+                    if is_url_context:
+                        # Keep the hyphen for URLs
+                        result[-1] += line
+                    else:
+                        # Handle regular hyphenated content that breaks across lines
+                        result[-1] = prev_line[:-1] + line
                 else:
                     result.append(line)
             else:
