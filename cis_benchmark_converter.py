@@ -393,7 +393,7 @@ def write_output(
         try:
             # Add the new fields to each recommendation
             for recommendation in recommendations:
-                recommendation['Implemented'] = ''
+                recommendation['Compliance Status'] = 'To Review'
                 recommendation['Reasoning'] = ''
             # Create a JSON object with document information and recommendations
             data = {
