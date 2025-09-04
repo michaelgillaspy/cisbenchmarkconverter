@@ -281,8 +281,6 @@ def extract_section(lines: List[str], start_index: int, section_name: str) -> Tu
                 (r'((?:Get|Set|New|Remove|Add|Enable|Disable|Test|Invoke)-[A-Za-z]+(?:\s+-[A-Za-z]+\s+[^\s,]+)*)', 'powershell_cmd'),
                 # Command line tools
                 (r'((?:reg|net|gpupdate|auditpol|sc|netsh|wmic)\s+[^,\n]*?)(?=\s+(?:More\s+information|Note:|Default:|This)|[,.]|$)', 'command'),
-                # Registry value types
-                (r'(REG_(?:DWORD|SZ|MULTI_SZ|EXPAND_SZ|BINARY|QWORD)(?::[^,\n]+)?)', 'regtype'),
             ]
             
             # Collect all matches with their positions
