@@ -391,15 +391,32 @@ def write_output(
 
     elif output_format == 'json':
         try:
-            # Add the new fields to each recommendation
+            # Restructure recommendations to ensure correct field order
+            ordered_recommendations = []
             for recommendation in recommendations:
-                recommendation['Compliance Status'] = 'To Review'
-                recommendation['Reasoning'] = ''
+                # Create new ordered dictionary with fields in desired order
+                ordered_rec = {}
+                # First add Number, Level, Title
+                if 'Number' in recommendation:
+                    ordered_rec['Number'] = recommendation['Number']
+                if 'Level' in recommendation:
+                    ordered_rec['Level'] = recommendation['Level']
+                if 'Title' in recommendation:
+                    ordered_rec['Title'] = recommendation['Title']
+                # Add Compliance Status and Reasoning after Title
+                ordered_rec['Compliance Status'] = 'To Review'
+                ordered_rec['Reasoning'] = ''
+                # Add all other fields from the original recommendation
+                for key, value in recommendation.items():
+                    if key not in ['Number', 'Level', 'Title']:
+                        ordered_rec[key] = value
+                ordered_recommendations.append(ordered_rec)
+            
             # Create a JSON object with document information and recommendations
             data = {
                 "document_title": title if title else "CIS Benchmark Document",
                 "document_version": version,
-                "recommendations": recommendations
+                "recommendations": ordered_recommendations
             }
             with output_file.open("w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=4)
