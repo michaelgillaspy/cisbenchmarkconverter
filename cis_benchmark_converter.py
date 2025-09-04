@@ -221,20 +221,78 @@ def extract_section(lines: List[str], start_index: int, section_name: str) -> Tu
         content.append(line)
         current_index += 1
 
-    # Special handling for References section to preserve URLs
-    if section_name == "References:":
-        # Join lines intelligently to preserve URLs
+    # Special handling for technical sections to preserve paths and commands
+    if section_name in ["References:", "Audit:", "Remediation:"]:
+        # Join lines intelligently to preserve technical content
         result = []
         for line in content:
-            if result and (line.startswith("http") or (result[-1].endswith("/") and not line.startswith("http"))):
-                # If current line starts with http or previous ends with /, concatenate without space
-                result[-1] += line
-            elif result and result[-1].endswith("-"):
-                # Handle hyphenated URLs that break across lines
-                result[-1] = result[-1][:-1] + line
+            if result:
+                prev_line = result[-1]
+                # Check if we should join without space
+                should_join_no_space = (
+                    # URL handling
+                    line.startswith("http") or 
+                    (prev_line.endswith("/") and not line.startswith("http")) or
+                    # Registry path handling (backslash at end or common registry patterns)
+                    prev_line.endswith("\\") or
+                    # PowerShell/Command line continuations
+                    prev_line.endswith("|") or prev_line.endswith("^") or
+                    # If previous line ends with : and next starts with letter (registry values)
+                    (prev_line.endswith(":") and line and line[0].isalpha()) or
+                    # Handle broken words (line ends with lowercase, next starts with lowercase)
+                    (prev_line and prev_line[-1].islower() and line and line[0].islower() and 
+                     not prev_line.endswith('.'))
+                )
+                
+                if should_join_no_space:
+                    result[-1] += line
+                elif prev_line.endswith("-") and not prev_line.endswith("--"):
+                    # Handle hyphenated content that breaks across lines
+                    result[-1] = prev_line[:-1] + line
+                else:
+                    result.append(line)
             else:
                 result.append(line)
-        return ' '.join(result).strip(), current_index
+        
+        # For Audit and Remediation, mark technical content with delimiters
+        if section_name in ["Audit:", "Remediation:"]:
+            final_result = []
+            for item in result:
+                # Detect technical content patterns
+                is_technical = (
+                    # Registry paths
+                    item.startswith("HKLM\\") or item.startswith("HKCU\\") or 
+                    item.startswith("HKEY_") or
+                    # File paths (Windows or Unix)
+                    (item.startswith("C:\\") or item.startswith("/") or 
+                     item.startswith("\\\\")) or
+                    # PowerShell commands
+                    item.startswith("Get-") or item.startswith("Set-") or 
+                    item.startswith("New-") or item.startswith("$") or
+                    # Command line tools
+                    item.startswith("reg ") or item.startswith("net ") or 
+                    item.startswith("gpupdate") or item.startswith("auditpol") or
+                    # Group Policy paths
+                    "Computer Configuration\\" in item or 
+                    "User Configuration\\" in item or
+                    # Common command patterns
+                    item.startswith("Run ") or item.startswith("Execute ") or
+                    # Registry value format
+                    (": REG_" in item) or (":REG_" in item) or
+                    # Contains common technical indicators
+                    (":\\Windows\\" in item) or ("\\Policies\\" in item)
+                )
+                
+                if is_technical:
+                    # Wrap technical content with markers
+                    final_result.append(f"||CODE||{item}||CODE||")
+                else:
+                    final_result.append(item)
+            
+            return ' '.join(final_result).strip(), current_index
+        else:
+            # References section - no special marking needed
+            return ' '.join(result).strip(), current_index
     else:
         return ' '.join(content).strip(), current_index
 
