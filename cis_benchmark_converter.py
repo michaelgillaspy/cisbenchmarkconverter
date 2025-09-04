@@ -221,7 +221,22 @@ def extract_section(lines: List[str], start_index: int, section_name: str) -> Tu
         content.append(line)
         current_index += 1
 
-    return ' '.join(content).strip(), current_index
+    # Special handling for References section to preserve URLs
+    if section_name == "References:":
+        # Join lines intelligently to preserve URLs
+        result = []
+        for line in content:
+            if result and (line.startswith("http") or (result[-1].endswith("/") and not line.startswith("http"))):
+                # If current line starts with http or previous ends with /, concatenate without space
+                result[-1] += line
+            elif result and result[-1].endswith("-"):
+                # Handle hyphenated URLs that break across lines
+                result[-1] = result[-1][:-1] + line
+            else:
+                result.append(line)
+        return ' '.join(result).strip(), current_index
+    else:
+        return ' '.join(content).strip(), current_index
 
 def extract_recommendations(full_text: str) -> List[Dict[str, str]]:
     """
