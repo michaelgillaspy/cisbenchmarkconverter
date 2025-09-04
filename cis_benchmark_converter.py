@@ -316,7 +316,7 @@ def write_output(
         version         : Document version (extracted from PDF).
     """
     logging.info(f"Writing output to {output_file} in {output_format.upper()} format...")
-    headers: List[str] = ['Compliance Status', 'Number', 'Level', 'Title']
+    headers: List[str] = ['Compliance Status', 'Number', 'Level', 'Title', 'Implemented', 'Reasoning']
     headers += [sec[:-1] for sec in SECTIONS_WITHOUT_CIS]  # remove trailing colon
 
     if output_format == 'csv':
@@ -329,6 +329,8 @@ def write_output(
                 writer.writerow(headers)
                 for recommendation in recommendations:
                     recommendation['Compliance Status'] = 'To Review'
+                    recommendation['Implemented'] = ''
+                    recommendation['Reasoning'] = ''
                     row = [recommendation.get(header, '') for header in headers]
                     writer.writerow(row)
         except Exception as e:
@@ -347,6 +349,8 @@ def write_output(
         sheet.append(headers)
         for recommendation in recommendations:
             recommendation['Compliance Status'] = 'To Review'
+            recommendation['Implemented'] = ''
+            recommendation['Reasoning'] = ''
             row = [recommendation.get(header, '') for header in headers]
             sheet.append(row)
         dv = DataValidation(type="list", formula1='"Compliant,Non-Compliant,To Review"', showDropDown=False)
@@ -378,7 +382,9 @@ def write_output(
         sheet.column_dimensions['B'].width = 8
         sheet.column_dimensions['C'].width = 8
         sheet.column_dimensions['D'].width = 50
-        for col in range(5, len(headers) + 1):
+        sheet.column_dimensions['E'].width = 15  # Implemented
+        sheet.column_dimensions['F'].width = 30  # Reasoning
+        for col in range(7, len(headers) + 1):
             col_letter = get_column_letter(col)
             sheet.column_dimensions[col_letter].width = 10
         try:
@@ -389,6 +395,10 @@ def write_output(
 
     elif output_format == 'json':
         try:
+            # Add the new fields to each recommendation
+            for recommendation in recommendations:
+                recommendation['Implemented'] = ''
+                recommendation['Reasoning'] = ''
             # Create a JSON object with document information and recommendations
             data = {
                 "document_title": title if title else "CIS Benchmark Document",
