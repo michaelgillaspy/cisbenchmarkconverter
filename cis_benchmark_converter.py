@@ -260,27 +260,20 @@ def extract_section(lines: List[str], start_index: int, section_name: str) -> Tu
             for item in result:
                 # Detect technical content patterns
                 is_technical = (
-                    # Registry paths
-                    item.startswith("HKLM\\") or item.startswith("HKCU\\") or 
-                    item.startswith("HKEY_") or
-                    # File paths (Windows or Unix)
-                    (item.startswith("C:\\") or item.startswith("/") or 
-                     item.startswith("\\\\")) or
+                    # Any string containing backslash (catches paths, settings, etc.)
+                    "\\" in item or
+                    # Unix-style paths
+                    item.startswith("/") or
                     # PowerShell commands
                     item.startswith("Get-") or item.startswith("Set-") or 
                     item.startswith("New-") or item.startswith("$") or
                     # Command line tools
                     item.startswith("reg ") or item.startswith("net ") or 
                     item.startswith("gpupdate") or item.startswith("auditpol") or
-                    # Group Policy paths
-                    "Computer Configuration\\" in item or 
-                    "User Configuration\\" in item or
                     # Common command patterns
                     item.startswith("Run ") or item.startswith("Execute ") or
                     # Registry value format
-                    (": REG_" in item) or (":REG_" in item) or
-                    # Contains common technical indicators
-                    (":\\Windows\\" in item) or ("\\Policies\\" in item)
+                    (": REG_" in item) or (":REG_" in item)
                 )
                 
                 if is_technical:
