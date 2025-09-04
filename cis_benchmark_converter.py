@@ -316,10 +316,10 @@ def write_output(
         version         : Document version (extracted from PDF).
     """
     logging.info(f"Writing output to {output_file} in {output_format.upper()} format...")
-    headers: List[str] = ['Compliance Status', 'Number', 'Level', 'Title', 'Implemented', 'Reasoning']
-    headers += [sec[:-1] for sec in SECTIONS_WITHOUT_CIS]  # remove trailing colon
-
+    
     if output_format == 'csv':
+        headers: List[str] = ['Compliance Status', 'Number', 'Level', 'Title']
+        headers += [sec[:-1] for sec in SECTIONS_WITHOUT_CIS]  # remove trailing colon
         try:
             with output_file.open(mode='w', newline='', encoding='utf-8') as file:
                 writer = csv.writer(file, delimiter='|')
@@ -329,8 +329,6 @@ def write_output(
                 writer.writerow(headers)
                 for recommendation in recommendations:
                     recommendation['Compliance Status'] = 'To Review'
-                    recommendation['Implemented'] = ''
-                    recommendation['Reasoning'] = ''
                     row = [recommendation.get(header, '') for header in headers]
                     writer.writerow(row)
         except Exception as e:
@@ -338,6 +336,8 @@ def write_output(
             raise
 
     elif output_format == 'excel':
+        headers: List[str] = ['Compliance Status', 'Number', 'Level', 'Title']
+        headers += [sec[:-1] for sec in SECTIONS_WITHOUT_CIS]  # remove trailing colon
         workbook = Workbook()
         sheet = workbook.active
         sheet.title = "Recommendations"
@@ -349,8 +349,6 @@ def write_output(
         sheet.append(headers)
         for recommendation in recommendations:
             recommendation['Compliance Status'] = 'To Review'
-            recommendation['Implemented'] = ''
-            recommendation['Reasoning'] = ''
             row = [recommendation.get(header, '') for header in headers]
             sheet.append(row)
         dv = DataValidation(type="list", formula1='"Compliant,Non-Compliant,To Review"', showDropDown=False)
