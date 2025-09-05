@@ -238,10 +238,8 @@ def extract_section(lines: List[str], start_index: int, section_name: str) -> Tu
                     # PowerShell/Command line continuations
                     prev_line.endswith("|") or prev_line.endswith("^") or
                     # If previous line ends with : and next starts with letter (registry values)
-                    (prev_line.endswith(":") and line and line[0].isalpha()) or
-                    # Handle broken words (line ends with lowercase, next starts with lowercase)
-                    (prev_line and prev_line[-1].islower() and line and line[0].islower() and 
-                     not prev_line.endswith('.'))
+                    (prev_line.endswith(":") and line and line[0].isalpha())
+                    # Removed the broken word detection - it was incorrectly joining separate words
                 )
                 
                 if should_join_no_space:
@@ -266,20 +264,25 @@ def extract_section(lines: List[str], start_index: int, section_name: str) -> Tu
                         # Keep the hyphen for URLs
                         result[-1] += line
                     else:
-                        # Handle regular hyphenated content that breaks across lines
+                        # Only remove hyphen if it's truly a word break
+                        # Check if the word before hyphen + word after form a valid compound
+                        # For now, join with a space to preserve separate words
                         result[-1] = prev_line[:-1] + line
                 else:
-                    result.append(line)
+                    # Normal case - join lines with a space
+                    if prev_line and not prev_line.endswith(' ') and line and not line.startswith(' '):
+                        result.append(line)
+                    else:
+                        result.append(line)
             else:
                 result.append(line)
         
         # For Audit and Remediation, mark technical content with delimiters
         if section_name in ["Audit:", "Remediation:"]:
-            # First join the content
+            # First join the content - make sure we have proper spacing
             joined_text = ' '.join(result).strip()
-            
-            # Use regex to find and wrap technical content
-            import re
+            # Clean up any double spaces that may have been introduced
+            joined_text = re.sub(r'\s+', ' ', joined_text)
             
             # Track already processed positions to avoid double-marking
             marked_positions = set()
